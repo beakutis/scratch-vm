@@ -4,6 +4,7 @@ const log = require('../../util/log');
 const cast = require('../../util/cast');
 const BLESession = require('../../io/bleSession');
 const Base64Util = require('../../util/base64-util');
+const formatMessage = require('format-message');
 
 /**
  * Icon png to be displayed at the left edge of each extension block, encoded as a data URI.
@@ -92,6 +93,7 @@ class AraConnector {
             ]
         }, this._onSessionConnect.bind(this));
     }
+    
 
     // TODO: keep here?
     /**
@@ -116,28 +118,6 @@ class AraConnector {
     }
 
     /**
-     * @param {string} text - the text to display.
-     * @return {Promise} - a Promise that resolves when writing to device.
-     */
-    flipSwitch (args) {
-        if (args.BTN == 'off') {
-            this._ble.write(service, onOffChar, 0x00);
-        } else {
-            this._ble.write(service, onOffChar, 0x01);
-        }
-    }
-
-    setLightBrightness(args){
-        if(args.BTN == 'bright') {
-            this.ble.write(service, brightnessChar, 0x00);
-        } else if (args.BTN == 'medium') {
-            this.ble.write(service, brightnessChar, 0x32);
-        } else {
-            this.ble.write(service, brightnessChar, 0x64);
-        } 
-    }
-
-    /**
      * Starts reading data from device after BLE has connected to it.
      */
     _onSessionConnect () {
@@ -155,15 +135,19 @@ class AraConnector {
      */
     _writeSessionData (command, message) {
         if (!this.getPeripheralIsConnected()) return;
-        const output = new Uint8Array(message.length + 1);
-        output[0] = command; // attach command to beginning of message
-        for (let i = 0; i < message.length; i++) {
-            output[i + 1] = message[i];
-        }
-        const data = Base64Util.uint8ArrayToBase64(output);
-        return this._ble.write(BLEUUID.service, BLEUUID.onOffChar, data, 'base64');
+        return this._ble.write(service, command, message);
     }
 }
+
+/**
+ * * Enum for tilt sensor direction.
+* @readonly
+* @enum {string}
+*/
+const onOffIndicator = {
+    ON: 'on',
+    OFF: 'off'
+};
 
 /**
  * Scratch 3.0 blocks to interact with a Ara device.
@@ -174,14 +158,14 @@ class Scratch3AraConnectorBlocks {
      * @return {string} - the name of this extension.
      */
     static get EXTENSION_NAME () {
-        return 'ara_connector';
+        return 'araConnector';
     }
 
     /**
      * @return {string} - the ID of this extension.
      */
     static get EXTENSION_ID () {
-        return 'ara_connector';
+        return 'araConnector';
     }
 
     /**
@@ -199,6 +183,30 @@ class Scratch3AraConnectorBlocks {
         this._device = new AraConnector(this.runtime, Scratch3AraConnectorBlocks.EXTENSION_ID);
     }
 
+        /**
+     * @return {array} - text and values for each tilt direction menu element
+     */
+    get ON_OFF_MENU () {
+        return [
+            {
+                text: formatMessage({
+                    id: 'araConnector.onOffMenu.on',
+                    default: 'on',
+                    description: 'label for front element in tilt direction picker for micro:bit extension'
+                }),
+                value: onOffIndicator.ON
+            },
+            {
+                text: formatMessage({
+                    id: 'araConnector.onOffMenu.off',
+                    default: 'off',
+                    description: 'label for back element in tilt direction picker for micro:bit extension'
+                }),
+                value: onOffIndicator.OFF
+            },
+        ];
+    }
+
     /**
      * @returns {object} metadata for this extension and its blocks.
      */
@@ -211,7 +219,11 @@ class Scratch3AraConnectorBlocks {
             blocks: [
                 {
                     opcode: 'flipSwitch',
-                    text: 'switch power',
+                    text: formatMessage({
+                        id: 'araConnector.flipSwitch',
+                        default: 'flip switch to [LIGHTSTATE]?',
+                        description: 'is the micro:bit is tilted in a direction?'
+                    }),
                     blockType: BlockType.COMMAND,
                     arguments: {
                         BTN: {
@@ -235,10 +247,32 @@ class Scratch3AraConnectorBlocks {
                 },
             ],
             menus: {
-                lightState: ['on', 'off'],
+                lightState: this.ON_OFF_MENU,
                 brightness: ['bright', 'medium', 'dim']
             }
         };
+    }
+
+        /**
+     * @param {string} text - the text to display.
+     * @return {Promise} - a Promise that resolves when writing to device.
+     */
+    flipSwitch (args) {
+        if (args.BTN == 'off') {
+            this._ble._writeSessionData(service, onOffChar, 0x00);
+        } else {
+            this._ble._writeSessionData(service, onOffChar, 0x01);
+        }
+    }
+
+    setLightBrightness(args){
+        if(args.BTN == 'bright') {
+            this.ble.write(service, brightnessChar, 0x00);
+        } else if (args.BTN == 'medium') {
+            this.ble.write(service, brightnessChar, 0x32);
+        } else {
+            this.ble.write(service, brightnessChar, 0x64);
+        } 
     }
 }
 
