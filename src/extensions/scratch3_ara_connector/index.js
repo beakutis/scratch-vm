@@ -18,7 +18,10 @@ const blockIconURI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAYA
  */
 const BLECommand = {
     CMD_LIGHT_ON: 0x00,
-    CMD_LIGHT_OFF: 0x01
+    CMD_LIGHT_OFF: 0x01,
+    CMD_BRIGHTNESS_DULL: 0x00,
+    CMD_BRIGHTNESS_MEDIUM: 0x32,
+    CMD_BRIGHTNESS_BRIGHT: 0x64
 };
 
 const BLETimeout = 4500; // TODO: might need tweaking based on how long the device takes to start sending data
@@ -29,9 +32,9 @@ const BLETimeout = 4500; // TODO: might need tweaking based on how long the devi
  */
 const BLEUUID = {
     //TO DO: BLESession is returning error "could not determine UUID for service"
-    service: 'FFE8BADC-E1CB-46C6-9AD9-631EA7CBADFF',
-    onOffChar: '00A26834-5CF4-48E5-AE1C-9E1234C03E00',
-    brightnessChar: 'BBE8BADC-E1CB-46C6-9AD9-631EA7CBA2BB'
+    service: 'ffe8badc-e1cb-46c6-9ad9-631ea7cbadff',
+    onOffChar: '00a26834-5cf4-48e5-ae1c-9e1234c03e00',
+    brightnessChar: 'bbe8badc-e1cb-46c6-9ad9-631ea7cba2bb'
 };
 
 /**
@@ -120,7 +123,7 @@ class AraConnector {
      */
     _writeSessionData (command, message) {
         if (!this.getPeripheralIsConnected()) return;
-        return this._ble.write(service, command, message);
+        return this._ble.write(BLEUUID.service, command, message);
     }
 }
 
@@ -246,8 +249,8 @@ class Scratch3AraConnectorBlocks {
                     opcode: 'flipSwitch',
                     text: formatMessage({
                         id: 'araConnector.flipSwitch',
-                        default: 'flip switch to [BTN]?',
-                        description: 'is the Ara light on or off?'
+                        default: 'turn light [BTN]',
+                        description: 'set the Ara light to on or off'
                     }),
                     blockType: BlockType.COMMAND,
                     arguments: {
@@ -262,8 +265,8 @@ class Scratch3AraConnectorBlocks {
                     opcode: 'setLightBrightness',
                     text: formatMessage({
                         id: 'araConnector.setLightBrightness',
-                        default: 'set brightness to [BTN]?',
-                        description: 'how bright is the Ara lamp?'
+                        default: 'set brightness to [BTN]',
+                        description: 'set the brightness of the Ara lamp'
                     }),
                     blockType: BlockType.COMMAND,
                     arguments: {
@@ -288,19 +291,19 @@ class Scratch3AraConnectorBlocks {
      */
     flipSwitch (args) {
         if (args.BTN == 'off') {
-            this._ble._writeSessionData(service, onOffChar, 0x00);
+            this._ble._writeSessionData(onOffChar, CMD_LIGHT_OFF);
         } else {
-            this._ble._writeSessionData(service, onOffChar, 0x01);
+            this._ble._writeSessionData(onOffChar, CMD_LIGHT_ON);
         }
     }
 
     setLightBrightness(args){
         if(args.BTN == 'bright') {
-            this.ble._writeSessionData(service, brightnessChar, 0x00);
+            this.ble._writeSessionData(brightnessChar, CMD_BRIGHTNESS_BRIGHT);
         } else if (args.BTN == 'medium') {
-            this.ble._writeSessionData(service, brightnessChar, 0x32);
+            this.ble._writeSessionData(brightnessChar, CMD_BRIGHTNESS_MEDIUM);
         } else {
-            this.ble._writeSessionData(service, brightnessChar, 0x64);
+            this.ble._writeSessionData(brightnessChar, CMD_BRIGHTNESS_DULL);
         } 
     }
 }
