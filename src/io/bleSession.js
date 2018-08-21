@@ -1,5 +1,5 @@
 const JSONRPCWebSocket = require('../util/jsonrpc-web-socket');
-const log = require('../util/log');
+// const log = require('../util/log');
 const ScratchLinkWebSocket = 'wss://device-manager.scratch.mit.edu:20110/scratch/ble';
 
 class BLESession extends JSONRPCWebSocket {
@@ -103,14 +103,30 @@ class BLESession extends JSONRPCWebSocket {
     }
 
     /**
-     * Start reading from the specified ble service.
+     * Start receiving notifications from the specified ble service.
+     * @param {number} serviceId - the ble service to read.
+     * @param {number} characteristicId - the ble characteristic to get notifications from.
+     * @param {object} onCharacteristicChanged - callback for characteristic change notifications.
+     * @return {Promise} - a promise from the remote startNotifications request.
+     */
+    startNotifications (serviceId, characteristicId, onCharacteristicChanged = null) {
+        const params = {
+            serviceId,
+            characteristicId
+        };
+        this._characteristicDidChangeCallback = onCharacteristicChanged;
+        return this.sendRemoteRequest('startNotifications', params);
+    }
+
+    /**
+     * Read from the specified ble service.
      * @param {number} serviceId - the ble service to read.
      * @param {number} characteristicId - the ble characteristic to read.
      * @param {boolean} optStartNotifications - whether to start receiving characteristic change notifications.
      * @param {object} onCharacteristicChanged - callback for characteristic change notifications.
      * @return {Promise} - a promise from the remote read request.
      */
-    read (serviceId, characteristicId, optStartNotifications = false, onCharacteristicChanged) {
+    read (serviceId, characteristicId, optStartNotifications = false, onCharacteristicChanged = null) {
         const params = {
             serviceId,
             characteristicId
@@ -121,7 +137,7 @@ class BLESession extends JSONRPCWebSocket {
         this._characteristicDidChangeCallback = onCharacteristicChanged;
         return this.sendRemoteRequest('read', params)
             .catch(e => {
-                if (e.data !== 'Reading is not permitted.') { // TODO: workaround til notify-only supported
+                if (e.data !== 'Reading is not permitted.') { // TODO: move this error check to extension
                     this._sendError(e);
                 }
             });
@@ -133,12 +149,16 @@ class BLESession extends JSONRPCWebSocket {
      * @param {number} characteristicId - the ble characteristic to write.
      * @param {string} message - the message to send.
      * @param {string} encoding - the message encoding type.
+     * @param {boolean} withResponse - if true, resolve after peripheral's response.
      * @return {Promise} - a promise from the remote send request.
      */
-    write (serviceId, characteristicId, message, encoding = null) {
+    write (serviceId, characteristicId, message, encoding = null, withResponse = null) {
         const params = {serviceId, characteristicId, message};
         if (encoding) {
             params.encoding = encoding;
+        }
+        if (withResponse) {
+            params.withResponse = withResponse;
         }
         return this.sendRemoteRequest('write', params)
             .catch(e => {
@@ -146,9 +166,9 @@ class BLESession extends JSONRPCWebSocket {
             });
     }
 
-    _sendError (e) {
+    _sendError (/* e */) {
         this._connected = false;
-        log.error(`BLESession error: ${JSON.stringify(e)}`);
+        // log.error(`BLESession error: ${JSON.stringify(e)}`);
         this._runtime.emit(this._runtime.constructor.PERIPHERAL_ERROR);
     }
 
