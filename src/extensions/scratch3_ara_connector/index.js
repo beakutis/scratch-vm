@@ -291,19 +291,19 @@ class Scratch3AraConnectorBlocks {
      */
     flipSwitch (args) {
         if (args.BTN == 'off') {
-            this._ble._writeSessionData(onOffChar, CMD_LIGHT_OFF);
+            this._device._writeSessionData(BLEUUID.onOffChar, BLECommand.CMD_LIGHT_OFF);
         } else {
-            this._ble._writeSessionData(onOffChar, CMD_LIGHT_ON);
+            this._device._writeSessionData(BLEUUID.onOffChar, BLECommand.CMD_LIGHT_ON);
         }
     }
 
     setLightBrightness(args){
         if(args.BTN == 'bright') {
-            this.ble._writeSessionData(brightnessChar, CMD_BRIGHTNESS_BRIGHT);
+            this._device._writeSessionData(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_BRIGHT);
         } else if (args.BTN == 'medium') {
-            this.ble._writeSessionData(brightnessChar, CMD_BRIGHTNESS_MEDIUM);
+            this._device._writeSessionData(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_MEDIUM);
         } else {
-            this.ble._writeSessionData(brightnessChar, CMD_BRIGHTNESS_DULL);
+            this._device._writeSessionData(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_DULL);
         } 
     }
 }
