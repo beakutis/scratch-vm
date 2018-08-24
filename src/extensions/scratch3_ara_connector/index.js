@@ -2,6 +2,7 @@ const ArgumentType = require('../../extension-support/argument-type');
 const BlockType = require('../../extension-support/block-type');
 const BLESession = require('../../io/bleSession');
 const formatMessage = require('format-message');
+const Base64Util = require('../../util/base64-util');
 
 /**
  * Icon png to be displayed at the left edge of each extension block, encoded as a data URI.
@@ -17,9 +18,9 @@ const blockIconURI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAYA
  * @enum {number}
  */
 const BLECommand = {
-    CMD_LIGHT_ON: 0x00,
-    CMD_LIGHT_OFF: 0x01,
-    CMD_BRIGHTNESS_DULL: 0x00,
+    CMD_LIGHT_ON: 0x01,
+    CMD_LIGHT_OFF: 0x00,
+    CMD_BRIGHTNESS_DULL: 0x05,
     CMD_BRIGHTNESS_MEDIUM: 0x32,
     CMD_BRIGHTNESS_BRIGHT: 0x64
 };
@@ -55,6 +56,10 @@ class AraConnector {
          * @private
          */
         this._runtime = runtime;
+
+        this._sensors = {
+            lightIsOn: false,
+        };
 
         /**
          * The BluetoothLowEnergy connection session for reading/writing device data.
@@ -107,11 +112,19 @@ class AraConnector {
         return connected;
     }
 
+    setLightIsOn (lightIsOn) {
+        this._sensors.lightIsOn = lightIsOn;
+    }
+
+    get lightIsOn() {
+        return this._sensors.lightIsOn;
+    }
+
     /**
      * Starts reading data from device after BLE has connected to it.
      */
     _onSessionConnect () {
-        this._timeoutID = window.setInterval(this.disconnectSession.bind(this), BLETimeout);
+        //this._timeoutID = window.setInterval(this.disconnectSession.bind(this), BLETimeout);
     }
 
     /**
@@ -121,11 +134,18 @@ class AraConnector {
      * @return {Promise} - a Promise that resolves when writing to device.
      * @private
      */
-    _writeSessionData (command, message) {
-        if (!this.getPeripheralIsConnected()) return;
-        return this._ble.write(BLEUUID.service, command, message);
+    _writeSessionData (characteristicId, command) {
+        if (!this.getPeripheralIsConnected()) {
+            return 
+        };
+        const output = new Uint8Array(1);
+        output[0] = command;
+        const data = Base64Util.uint8ArrayToBase64(output);
+        return this._ble.write(BLEUUID.service, characteristicId, data, "base64");
     }
 }
+
+//"d396ef20-1502-11e5-b60b-1333f925ecd3"
 
 /**
  * * Enum for on / off indicator.
@@ -277,12 +297,33 @@ class Scratch3AraConnectorBlocks {
                         }
                     }
                 },
+                {
+                    opcode: 'lightState',
+                    text: formatMessage({
+                        id: 'araConnector.lightState',
+                        default: 'light is [BTN]',
+                        description: 'whether the Ara light is on or off'
+                    }),
+                    blockType: BlockType.BOOLEAN,
+                    arguments: {
+                        BTN: {
+                            type: ArgumentType.STRING,
+                            menu: 'lightState',
+                            defaultValue: 'on'
+                        }
+                    }
+                },
             ],
             menus: {
                 lightState: this.ON_OFF_MENU,
                 brightness: this.BRIGHTNESS_MENU
             }
         };
+    }
+
+    lightState(args) {
+        console.log("lightState is " + this._device.lightIsOn());
+        return this._device.lightIsOn()
     }
 
     /**
@@ -292,8 +333,10 @@ class Scratch3AraConnectorBlocks {
     flipSwitch (args) {
         if (args.BTN == 'off') {
             this._device._writeSessionData(BLEUUID.onOffChar, BLECommand.CMD_LIGHT_OFF);
+            this._device.setLightIsOn(false);
         } else {
             this._device._writeSessionData(BLEUUID.onOffChar, BLECommand.CMD_LIGHT_ON);
+            this._device.setLightIsOn(true);
         }
     }
 
