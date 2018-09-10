@@ -163,7 +163,7 @@ class BLESession extends JSONRPCWebSocket {
         console.log("the service is " + serviceId + " and the characteristicId is " + characteristicId + " and the command is " + message);
         return this.sendRemoteRequest('write', params)
             .catch(e => {
-                console.log("ERROR: " + e.data);
+                console.log("THE ERROR MESSAGE IS " + e.data);
                 this._sendError(e);
             });
     }
