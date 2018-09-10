@@ -479,6 +479,38 @@ class Scratch3AraConnectorBlocks {
                         }
                     }
                 },
+                {
+                    opcode: 'whenBrightnessChanged',
+                    text: formatMessage({
+                        id: 'araConnector.whenBrightnessChanged',
+                        default: 'when brigthness is [BTN]',
+                        description: 'when the light brightness is switched'
+                    }),
+                    blockType: BlockType.HAT,
+                    arguments: {
+                        BTN: {
+                            type: ArgumentType.STRING,
+                            menu: 'brightness',
+                            defaultValue: 'bright'
+                        }
+                    }
+                },
+                {
+                    opcode: 'whenColorTemperatureChanged',
+                    text: formatMessage({
+                        id: 'araConnector.whenColorTemperatureChanged',
+                        default: 'when temperature is [BTN]',
+                        description: 'when the light temperature is switched'
+                    }),
+                    blockType: BlockType.HAT,
+                    arguments: {
+                        BTN: {
+                            type: ArgumentType.STRING,
+                            menu: 'colorTemperature',
+                            defaultValue: 'warm'
+                        }
+                    }
+                },
                 '---',
                 {
                     opcode: 'flipSwitch',
@@ -516,7 +548,7 @@ class Scratch3AraConnectorBlocks {
                     opcode: 'setColorTemperature',
                     text: formatMessage({
                         id: 'araConnector.setColorTemperature',
-                        default: 'set color temperature to [BTN]',
+                        default: 'set temperature to [BTN]',
                         description: 'set the color temperature of the Ara lamp'
                     }),
                     blockType: BlockType.COMMAND,
@@ -610,6 +642,32 @@ class Scratch3AraConnectorBlocks {
      */
     whenSwitchFlipped (args) {
         if (args.BTN == this._device.lightState) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Test the light's brightness
+     * @param {object} args - the block's arguments.
+     * @return {boolean} - true if the switch state matches input state.
+     */
+    whenBrightnessChanged (args) {
+        if (args.BTN == this._device.brightnessState) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Test the light's temperature
+     * @param {object} args - the block's arguments.
+     * @return {boolean} - true if the switch state matches input state.
+     */
+    whenColorTemperatureChanged (args) {
+        if (args.BTN == this._device.temperatureState) {
             return true;
         } else {
             return false;
