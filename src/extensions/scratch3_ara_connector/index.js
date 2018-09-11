@@ -184,7 +184,7 @@ class AraConnector {
         // this._busyTimeoutID = window.setTimeout(() => {
         //     this._ble.read(BLEUUID.lightingService, BLEUUID.temperatureChar, true, tempCallback);
         // }, 500);
-        //this._timeoutID = window.setInterval(this.disconnectSession.bind(this), BLETimeout);
+        this._timeoutID = window.setInterval(this.disconnectSession.bind(this), BLETimeout);
     }
 
     /**
@@ -193,6 +193,7 @@ class AraConnector {
      * @private
      */
     _processOnOffData (lightState) {
+        console.log("PROCESSING ON/OFF DATA");
         const data = Base64Util.base64ToUint8Array(lightState);
         if (data == 1) {
             this._sensors.lightState = 'on';
@@ -200,6 +201,7 @@ class AraConnector {
             this._sensors.lightState = 'off';
         }
         window.clearInterval(this._timeoutID);
+        this._timeoutID = window.setInterval(this.disconnectSession.bind(this), BLETimeout);
     }
 
     /**
@@ -208,6 +210,7 @@ class AraConnector {
      * @private
      */
     _processBrightnessData (brightnessState) {
+        console.log("PROCESSING BRIGHTNESS DATA");
         const data = Base64Util.base64ToUint8Array(brightnessState);
         if (data == 100) {
             this._sensors.brightnessState = 'bright';

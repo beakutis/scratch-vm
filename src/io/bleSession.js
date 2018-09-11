@@ -95,6 +95,7 @@ class BLESession extends JSONRPCWebSocket {
             }
             break;
         case 'characteristicDidChange':
+            console.log("CORRECT");
             this._characteristicDidChangeCallback(params.message);
             break;
         case 'ping':

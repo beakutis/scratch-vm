@@ -248,6 +248,7 @@ class MicroBit {
      * @private
      */
     _processSessionData (base64) {
+        console.log("processSessionData IS BEING CALLED");
         // parse data
         const data = Base64Util.base64ToUint8Array(base64);
 
