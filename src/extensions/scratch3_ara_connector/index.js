@@ -3,6 +3,8 @@ const BlockType = require('../../extension-support/block-type');
 const BLESession = require('../../io/bleSession');
 const formatMessage = require('format-message');
 const Base64Util = require('../../util/base64-util');
+var events = require('events');
+var eventEmitter = new events.EventEmitter();
 
 /**
  * Icon png to be displayed at the left edge of each extension block, encoded as a data URI.
@@ -113,7 +115,6 @@ class AraConnector {
             optionalServices: [BLEUUID.service]
         }, this._onSessionConnect.bind(this));
     }
-    
 
     // TODO: keep here?
     /**
@@ -176,11 +177,18 @@ class AraConnector {
     _onSessionConnect () {
         const onOffCallback = this._processOnOffData.bind(this);
         const brightnessCallback = this._processBrightnessData.bind(this);
+        eventEmitter.on(btoa('onOff'), onOffCallback)
         //const tempCallback = this._processTemperatureData.bind(this);
-        this._ble.read(BLEUUID.lightingService, BLEUUID.onOffChar, true, onOffCallback);
-        this._busyTimeoutID = window.setTimeout(() => {
-            this._ble.read(BLEUUID.lightingService, BLEUUID.brightnessChar, true, brightnessCallback);
-        }, 500);
+        this._ble.read(BLEUUID.lightingService, BLEUUID.onOffChar, true).then ( () => { 
+            // eventEmitter.emit(btoa('onOff'))
+            console.log("notification received");
+        })
+        .catch(function(error) { console.log("READ DIDN'T WORK " + error)});
+        this._ble.startNotifications(BLEUUID.lightingService, BLEUUID.onOffChar, onOffCallback).then( () => console.log("startNotifications"))
+        .catch(function(error){ console.log("startNotifications did NOT work " + error)});
+        // this._busyTimeoutID = window.setTimeout(() => {
+        //     this._ble.read(BLEUUID.lightingService, BLEUUID.brightnessChar, true, brightnessCallback);
+        // }, 500);
         // this._busyTimeoutID = window.setTimeout(() => {
         //     this._ble.read(BLEUUID.lightingService, BLEUUID.temperatureChar, true, tempCallback);
         // }, 500);
@@ -201,7 +209,7 @@ class AraConnector {
             this._sensors.lightState = 'off';
         }
         window.clearInterval(this._timeoutID);
-        this._timeoutID = window.setInterval(this.disconnectSession.bind(this), BLETimeout);
+        // this._timeoutID = window.setInterval(this.disconnectSession.bind(this), BLETimeout);
     }
 
     /**
@@ -264,7 +272,7 @@ class AraConnector {
         const output = new Uint8Array(1);
         output[0] = command;
         const data = Base64Util.uint8ArrayToBase64(output);
-        return this._ble.write(BLEUUID.lightingService, characteristicId, data, "base64", true).then(
+        this._ble.write(BLEUUID.lightingService, characteristicId, data, "base64", true).then(
             () => {
                 this._busy = false;
                 window.clearTimeout(this._busyTimeoutID);
@@ -683,11 +691,11 @@ class Scratch3AraConnectorBlocks {
      */
     flipSwitch (args) {
         if (args.BTN == 'off') {
-            this._device._writeSessionData(BLEUUID.onOffChar, BLECommand.CMD_LIGHT_OFF);
-            this._device.setLightState('off');
+            return this._device._writeSessionData(BLEUUID.onOffChar, BLECommand.CMD_LIGHT_OFF);
+            // this._device.setLightState('off');
         } else {
-            this._device._writeSessionData(BLEUUID.onOffChar, BLECommand.CMD_LIGHT_ON);
-            this._device.setLightState('on');
+            return this._device._writeSessionData(BLEUUID.onOffChar, BLECommand.CMD_LIGHT_ON);
+            // this._device.setLightState('on');
         }
     }
 
@@ -697,14 +705,14 @@ class Scratch3AraConnectorBlocks {
      */
     setLightBrightness(args){
         if(args.BTN == 'bright') {
-            this._device._writeSessionData(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_BRIGHT);
-            this._device.setBrightnessState('bright');
+            return this._device._writeSessionData(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_BRIGHT);
+            // this._device.setBrightnessState('bright');
         } else if (args.BTN == 'medium') {
-            this._device._writeSessionData(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_MEDIUM);
-            this._device.setBrightnessState('medium');
+            return this._device._writeSessionData(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_MEDIUM);
+            // this._device.setBrightnessState('medium');
         } else {
-            this._device._writeSessionData(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_DULL);
-            this._device.setBrightnessState('dull');
+            return this._device._writeSessionData(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_DULL);
+            // this._device.setBrightnessState('dull');
         } 
     }
 
@@ -714,14 +722,14 @@ class Scratch3AraConnectorBlocks {
      */
     setColorTemperature(args){
         if(args.BTN == 'cool') {
-            this._device._writeSessionData(BLEUUID.temperatureChar, BLECommand.CMD_TEMPERATURE_COOL);
-            this._device.setTemperatureState('cool');
+            return this._device._writeSessionData(BLEUUID.temperatureChar, BLECommand.CMD_TEMPERATURE_COOL);
+            // this._device.setTemperatureState('cool');
         } else if (args.BTN == 'neutral') {
-            this._device._writeSessionData(BLEUUID.temperatureChar, BLECommand.CMD_TEMPERATURE_NEUTRAL);
-            this._device.setTemperatureState('neutral');
+            return this._device._writeSessionData(BLEUUID.temperatureChar, BLECommand.CMD_TEMPERATURE_NEUTRAL);
+            // this._device.setTemperatureState('neutral');
         } else {
-            this._device._writeSessionData(BLEUUID.temperatureChar, BLECommand.CMD_TEMPERATURE_WARM);
-            this._device.setTemperatureState('warm');
+            return this._device._writeSessionData(BLEUUID.temperatureChar, BLECommand.CMD_TEMPERATURE_WARM);
+            // this._device.setTemperatureState('warm');
         } 
     }
 
