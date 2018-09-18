@@ -1,6 +1,6 @@
 const ArgumentType = require('../../extension-support/argument-type');
 const BlockType = require('../../extension-support/block-type');
-const BLESession = require('../../io/bleSession');
+const BLE = require('../../io/ble');
 const formatMessage = require('format-message');
 const Base64Util = require('../../util/base64-util');
 var events = require('events');
@@ -66,11 +66,11 @@ class AraConnector {
 
         /**
          * The BluetoothLowEnergy connection session for reading/writing device data.
-         * @type {BLESession}
+         * @type {BLE}
          * @private
          */
         this._ble = null;
-        this._runtime.registerExtensionDevice(extensionId, this);
+        this._runtime.registerPeripheralExtension(extensionId, this);
 
         /**
          * The most recently received value for each sensor.
@@ -85,7 +85,7 @@ class AraConnector {
         };
 
         /**
-         * A flag that is true while we are busy sending data to the BLE session.
+         * A flag that is true while we are busy sending data to the BLE socket.
          * @type {boolean}
          * @private
          */
@@ -103,40 +103,12 @@ class AraConnector {
          * @private
          */
         this._timeoutID = null;
+
+        this.disconnect = this.disconnect.bind(this);
+        this._onConnect = this._onConnect.bind(this);
+        this._processOnOffData = this._processOnOffData.bind(this);
     }
 
-    // TODO: keep here?
-    /**
-     * Called by the runtime when user wants to scan for a device.
-     */
-    startDeviceScan () {
-        this._ble = new BLESession(this._runtime, {
-            filters: [{services: [BLEUUID.lightingService]}],
-            optionalServices: [BLEUUID.service]
-        }, this._onSessionConnect.bind(this));
-    }
-
-    // TODO: keep here?
-    /**
-     * Called by the runtime when user wants to connect to a certain device.
-     * @param {number} id - the id of the device to connect to.
-     */
-    connectDevice (id) {
-        this._ble.connectDevice(id);
-    }
-
-    disconnectSession () {
-        window.clearInterval(this._timeoutID);
-        this._ble.disconnectSession();
-    }
-
-    getPeripheralIsConnected () {
-        let connected = false;
-        if (this._ble) {
-            connected = this._ble.getPeripheralIsConnected();
-        }
-        return connected;
-    }
 
     setLightState (lightState) {
         this._sensors.lightState = lightState;
@@ -171,29 +143,62 @@ class AraConnector {
         return this._sensors.temperatureState;
     }
 
-    /**
-     * Starts reading data from device after BLE has connected to it.
+        /**
+     * Called by the runtime when user wants to scan for a peripheral.
      */
-    _onSessionConnect () {
-        const onOffCallback = this._processOnOffData.bind(this);
-        const brightnessCallback = this._processBrightnessData.bind(this);
-        eventEmitter.on(btoa('onOff'), onOffCallback)
-        //const tempCallback = this._processTemperatureData.bind(this);
-        this._ble.read(BLEUUID.lightingService, BLEUUID.onOffChar, true).then ( () => { 
-            // eventEmitter.emit(btoa('onOff'))
-            console.log("notification received");
-        })
-        .catch(function(error) { console.log("READ DIDN'T WORK " + error)});
-        this._ble.startNotifications(BLEUUID.lightingService, BLEUUID.onOffChar, onOffCallback).then( () => console.log("startNotifications"))
-        .catch(function(error){ console.log("startNotifications did NOT work " + error)});
-        // this._busyTimeoutID = window.setTimeout(() => {
-        //     this._ble.read(BLEUUID.lightingService, BLEUUID.brightnessChar, true, brightnessCallback);
-        // }, 500);
-        // this._busyTimeoutID = window.setTimeout(() => {
-        //     this._ble.read(BLEUUID.lightingService, BLEUUID.temperatureChar, true, tempCallback);
-        // }, 500);
-        this._timeoutID = window.setInterval(this.disconnectSession.bind(this), BLETimeout);
+    scan () {
+        console.log('scanning');
+        this._ble = new BLE(this._runtime, {
+            filters: [
+                {services: [BLEUUID.lightingService]}
+            ]
+        }, this._onConnect);
     }
+
+    connect (id) {
+        this._ble.connectPeripheral(id);
+    }
+
+    disconnect () {
+        window.clearInterval(this._timeoutID);
+        this._ble.disconnect();
+    }
+
+    /**
+     * Return true if connected to the micro:bit.
+     * @return {boolean} - whether the micro:bit is connected.
+     */
+    isConnected () {
+        let connected = false;
+        if (this._ble) {
+            connected = this._ble.isConnected();
+        }
+        return connected;
+    }
+
+    // /**
+    //  * Starts reading data from device after BLE has connected to it.
+    //  */
+    // _onSessionConnect () {
+    //     const onOffCallback = this._processOnOffData.bind(this);
+    //     const brightnessCallback = this._processBrightnessData.bind(this);
+    //     eventEmitter.on(btoa('onOff'), onOffCallback)
+    //     //const tempCallback = this._processTemperatureData.bind(this);
+    //     this._ble.read(BLEUUID.lightingService, BLEUUID.onOffChar, true).then ( () => { 
+    //         // eventEmitter.emit(btoa('onOff'))
+    //         console.log("notification received");
+    //     })
+    //     .catch(function(error) { console.log("READ DIDN'T WORK " + error)});
+    //     this._ble.startNotifications(BLEUUID.lightingService, BLEUUID.onOffChar, onOffCallback).then( () => console.log("startNotifications"))
+    //     .catch(function(error){ console.log("startNotifications did NOT work " + error)});
+    //     // this._busyTimeoutID = window.setTimeout(() => {
+    //     //     this._ble.read(BLEUUID.lightingService, BLEUUID.brightnessChar, true, brightnessCallback);
+    //     // }, 500);
+    //     // this._busyTimeoutID = window.setTimeout(() => {
+    //     //     this._ble.read(BLEUUID.lightingService, BLEUUID.temperatureChar, true, tempCallback);
+    //     // }, 500);
+    //     this._timeoutID = window.setInterval(this.disconnectSession.bind(this), BLETimeout);
+    // }
 
     /**
      * Process the on/off sensor data from the incoming BLE characteristic.
@@ -254,8 +259,8 @@ class AraConnector {
      * @return {Promise} - a Promise that resolves when writing to device.
      * @private
      */
-    _writeSessionData (characteristicId, command) {
-        if (!this.getPeripheralIsConnected()) return;
+    send (characteristicId, command) {
+        if (this._busy) return;
 
         // Set a busy flag so that while we are sending a message and waiting for
         // the response, additional messages are ignored.
@@ -263,7 +268,7 @@ class AraConnector {
 
         // Set a timeout after which to reset the busy flag. This is used in case
         // a BLE message was sent for which we never received a response, because
-        // e.g. the device was turned off after the message was sent. We reset
+        // e.g. the peripheral was turned off after the message was sent. We reset
         // the busy flag after a while so that it is possible to try again later.
         this._busyTimeoutID = window.setTimeout(() => {
             this._busy = false;
@@ -278,6 +283,16 @@ class AraConnector {
                 window.clearTimeout(this._busyTimeoutID);
             }
         )
+    }
+
+    /**
+     * Starts reading data from peripheral after BLE has connected to it.
+     * @private
+     */
+    _onConnect () {
+        console.log('onConnect');
+        this._ble.read(BLEUUID.lightingService, BLEUUID.onOffChar, true, this._processOnOffData);
+        this._timeoutID = window.setInterval(this.disconnect, BLETimeout);
     }
 }
 
@@ -460,8 +475,8 @@ class Scratch3AraConnectorBlocks {
          */
         this.runtime = runtime;
 
-        // Create a new Ara device instance
-        this._device = new AraConnector(this.runtime, Scratch3AraConnectorBlocks.EXTENSION_ID);
+        // Create a new Ara peripheral instance
+        this._peripheral = new AraConnector(this.runtime, Scratch3AraConnectorBlocks.EXTENSION_ID);
     }
 
     /**
@@ -652,7 +667,7 @@ class Scratch3AraConnectorBlocks {
      * @return {boolean} - true if the switch state matches input state.
      */
     whenSwitchFlipped (args) {
-        if (args.BTN == this._device.lightState) {
+        if (args.BTN == this._peripheral.lightState) {
             return true;
         } else {
             return false;
@@ -665,7 +680,7 @@ class Scratch3AraConnectorBlocks {
      * @return {boolean} - true if the switch state matches input state.
      */
     whenBrightnessChanged (args) {
-        if (args.BTN == this._device.brightnessState) {
+        if (args.BTN == this._peripheral.brightnessState) {
             return true;
         } else {
             return false;
@@ -678,7 +693,7 @@ class Scratch3AraConnectorBlocks {
      * @return {boolean} - true if the switch state matches input state.
      */
     whenColorTemperatureChanged (args) {
-        if (args.BTN == this._device.temperatureState) {
+        if (args.BTN == this._peripheral.temperatureState) {
             return true;
         } else {
             return false;
@@ -691,10 +706,10 @@ class Scratch3AraConnectorBlocks {
      */
     flipSwitch (args) {
         if (args.BTN == 'off') {
-            return this._device._writeSessionData(BLEUUID.onOffChar, BLECommand.CMD_LIGHT_OFF);
+            return this._peripheral.send(BLEUUID.onOffChar, BLECommand.CMD_LIGHT_OFF);
             // this._device.setLightState('off');
         } else {
-            return this._device._writeSessionData(BLEUUID.onOffChar, BLECommand.CMD_LIGHT_ON);
+            return this._peripheral.send(BLEUUID.onOffChar, BLECommand.CMD_LIGHT_ON);
             // this._device.setLightState('on');
         }
     }
@@ -705,13 +720,13 @@ class Scratch3AraConnectorBlocks {
      */
     setLightBrightness(args){
         if(args.BTN == 'bright') {
-            return this._device._writeSessionData(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_BRIGHT);
+            return this._peripheral.send(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_BRIGHT);
             // this._device.setBrightnessState('bright');
         } else if (args.BTN == 'medium') {
-            return this._device._writeSessionData(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_MEDIUM);
+            return this._peripheral.send(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_MEDIUM);
             // this._device.setBrightnessState('medium');
         } else {
-            return this._device._writeSessionData(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_DULL);
+            return this._peripheral.send(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_DULL);
             // this._device.setBrightnessState('dull');
         } 
     }
@@ -722,13 +737,13 @@ class Scratch3AraConnectorBlocks {
      */
     setColorTemperature(args){
         if(args.BTN == 'cool') {
-            return this._device._writeSessionData(BLEUUID.temperatureChar, BLECommand.CMD_TEMPERATURE_COOL);
+            return this._peripheral.send(BLEUUID.temperatureChar, BLECommand.CMD_TEMPERATURE_COOL);
             // this._device.setTemperatureState('cool');
         } else if (args.BTN == 'neutral') {
-            return this._device._writeSessionData(BLEUUID.temperatureChar, BLECommand.CMD_TEMPERATURE_NEUTRAL);
+            return this._peripheral.send(BLEUUID.temperatureChar, BLECommand.CMD_TEMPERATURE_NEUTRAL);
             // this._device.setTemperatureState('neutral');
         } else {
-            return this._device._writeSessionData(BLEUUID.temperatureChar, BLECommand.CMD_TEMPERATURE_WARM);
+            return this._peripheral.send(BLEUUID.temperatureChar, BLECommand.CMD_TEMPERATURE_WARM);
             // this._device.setTemperatureState('warm');
         } 
     }
@@ -740,9 +755,9 @@ class Scratch3AraConnectorBlocks {
     flashLights (args) {
         var i;
         for (i = 0; i < parseInt(args.BTN); i++) {
-            this._device._writeSessionData(BLEUUID.onOffChar, BLECommand.CMD_LIGHT_OFF);
-            this._device._writeSessionData(BLEUUID.onOffChar, BLECommand.CMD_LIGHT_ON);
-            this._device.setLightState('on');
+            this._peripheral.send(BLEUUID.onOffChar, BLECommand.CMD_LIGHT_OFF);
+            this._peripheral.send(BLEUUID.onOffChar, BLECommand.CMD_LIGHT_ON);
+            this._peripheral.setLightState('on');
         }
     }
 
@@ -752,7 +767,7 @@ class Scratch3AraConnectorBlocks {
      * @return {boolean} - true if the on/off sensor matches input.
      */
     lightState(args) {
-        if (this._device.lightState == args.BTN) {
+        if (this._peripheral.lightState == args.BTN) {
             return true;
         } else {
             return false;
@@ -765,7 +780,7 @@ class Scratch3AraConnectorBlocks {
      * @return {boolean} - true if the brightness sensor matches input.
      */
     brightnessState(args) {
-        if(this._device.brightnessState == args.BTN) {
+        if(this._peripheral.brightnessState == args.BTN) {
             return true;
         } else {
             return false;
@@ -778,7 +793,7 @@ class Scratch3AraConnectorBlocks {
      * @return {boolean} - true if the temperature sensor matches input.
      */
     temperatureState(args) {
-        if(this._device.temperatureState == args.BTN) {
+        if(this._peripheral.temperatureState == args.BTN) {
             return true;
         } else {
             return false;
