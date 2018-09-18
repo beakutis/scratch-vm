@@ -107,6 +107,8 @@ class AraConnector {
         this.disconnect = this.disconnect.bind(this);
         this._onConnect = this._onConnect.bind(this);
         this._processOnOffData = this._processOnOffData.bind(this);
+        this._processBrightnessData = this._processBrightnessData.bind(this);
+        this._processTemperatureData = this._processTemperatureData.bind(this);
     }
 
 
@@ -143,15 +145,14 @@ class AraConnector {
         return this._sensors.temperatureState;
     }
 
-        /**
+    /**
      * Called by the runtime when user wants to scan for a peripheral.
      */
     scan () {
-        console.log('scanning');
         this._ble = new BLE(this._runtime, {
             filters: [
-                {services: [BLEUUID.lightingService]}
-            ]
+                {services: [BLEUUID.lightingService]} ] ,
+                optionalServices: [BLEUUID.service]
         }, this._onConnect);
     }
 
@@ -214,7 +215,7 @@ class AraConnector {
             this._sensors.lightState = 'off';
         }
         window.clearInterval(this._timeoutID);
-        // this._timeoutID = window.setInterval(this.disconnectSession.bind(this), BLETimeout);
+        this._timeoutID = window.setInterval(this.disconnect, BLETimeout);
     }
 
     /**
@@ -285,6 +286,8 @@ class AraConnector {
         )
     }
 
+    // MUTABLE DEVICE NAME UUID: d396ef20-1502-11e5-b60b-2227f925ec1d'
+
     /**
      * Starts reading data from peripheral after BLE has connected to it.
      * @private
@@ -292,6 +295,12 @@ class AraConnector {
     _onConnect () {
         console.log('onConnect');
         this._ble.read(BLEUUID.lightingService, BLEUUID.onOffChar, true, this._processOnOffData);
+        this._busyTimeoutID = window.setTimeout(() => {
+        this._ble.read(BLEUUID.lightingService, BLEUUID.brightnessChar, true, this._processBrightnessData);
+    }, 500);
+        // this._busyTimeoutID = window.setTimeout(() => {
+        // this._ble.read(BLEUUID.lightingService, BLEUUID.temperatureChar, true, this._processTemperatureData);
+        // }, 500);
         this._timeoutID = window.setInterval(this.disconnect, BLETimeout);
     }
 }

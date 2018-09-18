@@ -158,6 +158,7 @@ class BLE extends JSONRPCWebSocket {
                 this._runtime.constructor.PERIPHERAL_LIST_UPDATE,
                 this._availablePeripherals
             );
+            // console.log("AVAILABLE PERIPHS " + this._availablePeripherals[params.peripheralId])
             if (this._discoverTimeoutID) {
                 // TODO: window?
                 window.clearTimeout(this._discoverTimeoutID);
