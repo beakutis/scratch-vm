@@ -84,9 +84,9 @@ class AraConnector {
          */
 
         this._sensors = {
-            lightState: 'off',
-            brightnessState: 'bright',
-            temperatureState: 'neutral'
+            lightState: null,
+            brightnessState: null,
+            temperatureState: null
         };
 
         /**
@@ -108,6 +108,9 @@ class AraConnector {
          * @private
          */
         this._timeoutID = null;
+        this._onOffInterval = null;
+        this._brightnessInterval = null;
+        this._temperatureInterval = null;
 
         this.disconnect = this.disconnect.bind(this);
         this._onConnect = this._onConnect.bind(this);
@@ -166,6 +169,9 @@ class AraConnector {
     }
 
     disconnect () {
+        window.clearInterval(this._brightnessInterval);
+        window.clearInterval(this._onOffInterval);
+        window.clearInterval(this._temperatureInterval);
         window.clearInterval(this._timeoutID);
         this._ble.disconnect();
     }
@@ -212,11 +218,10 @@ class AraConnector {
      * @private
      */
     _processOnOffData (lightState) {
-        console.log("PROCESSING ON/OFF DATA");
         const data = Base64Util.base64ToUint8Array(lightState);
         if (data == 1) {
             this._sensors.lightState = 'on';
-        } else {
+        } else if (data == 0) {
             this._sensors.lightState = 'off';
         }
         window.clearInterval(this._timeoutID);
@@ -229,16 +234,16 @@ class AraConnector {
      * @private
      */
     _processBrightnessData (brightnessState) {
-        console.log("PROCESSING BRIGHTNESS DATA");
         const data = Base64Util.base64ToUint8Array(brightnessState);
         if (data == 100) {
             this._sensors.brightnessState = 'bright';
-        } else if (data == 50){
+        } else if (data == 16){
             this._sensors.brightnessState = 'medium';
-        } else {
+        } else if (data == 5) {
             this._sensors.brightnessState = 'dull';
         }
         window.clearInterval(this._timeoutID);
+        this._timeoutID = window.setInterval(this.disconnect, BLETimeout);
         }
 
     /**
@@ -247,7 +252,6 @@ class AraConnector {
      * @private
      */
     _processTemperatureData (temperatureState) {
-        console.log("PROCESSING TEMP DATA");
         const data = Base64Util.base64ToUint8Array(temperatureState);
         if (data == 100) {
             this._sensors.temperatureState = 'warm';
@@ -257,6 +261,7 @@ class AraConnector {
             this._sensors.temperatureState = 'cool';
         }
         window.clearInterval(this._timeoutID);
+        this._timeoutID = window.setInterval(this.disconnect, BLETimeout);
     }
 
     /**
@@ -298,19 +303,18 @@ class AraConnector {
 
     /**
      * Starts reading data from peripheral after BLE has connected to it.
-     * Currently, these read calls are not necessary, as we are also reading the data each
-     * time that we need. However, this is the structure we will use if/when notifications are
-     * enabled
      * @private
      */
     _onConnect () {
-        this._ble.read(BLEUUID.lightingService, BLEUUID.onOffChar, true, this._processOnOffData);
-        this._busyTimeoutID = window.setTimeout(() => {
+        this._onOffInterval = window.setInterval(() => {
+            this._ble.read(BLEUUID.lightingService, BLEUUID.onOffChar, true, this._processOnOffData);
+        }, 400);
+        this._brightnessInterval = window.setInterval(() => {
         this._ble.read(BLEUUID.lightingService, BLEUUID.brightnessChar, true, this._processBrightnessData);
-    }, 400);
-          this._busyTimeoutID = window.setTimeout(() => {
+    }, 600);
+          this._temperatureInterval = window.setInterval(() => {
           this._ble.read(BLEUUID.lightingService, BLEUUID.temperatureChar, true, this._processTemperatureData);
-         }, 600);
+         }, 800);
         this._timeoutID = window.setInterval(this.disconnect, BLETimeout);
     }
 }
@@ -494,6 +498,8 @@ class Scratch3AraConnectorBlocks {
          */
         this.runtime = runtime;
 
+        this._busy = false;
+
         // Create a new Ara peripheral instance
         this._peripheral = new AraConnector(this.runtime, Scratch3AraConnectorBlocks.EXTENSION_ID);
     }
@@ -528,7 +534,7 @@ class Scratch3AraConnectorBlocks {
                     opcode: 'whenBrightnessChanged',
                     text: formatMessage({
                         id: 'araConnector.whenBrightnessChanged',
-                        default: 'when brigthness is [BTN]',
+                        default: 'when brigthness turns [BTN]',
                         description: 'when the light brightness is switched'
                     }),
                     blockType: BlockType.HAT,
@@ -544,7 +550,7 @@ class Scratch3AraConnectorBlocks {
                     opcode: 'whenColorTemperatureChanged',
                     text: formatMessage({
                         id: 'araConnector.whenColorTemperatureChanged',
-                        default: 'when temperature is [BTN]',
+                        default: 'when temperature turns [BTN]',
                         description: 'when the light temperature is switched'
                     }),
                     blockType: BlockType.HAT,
@@ -686,7 +692,6 @@ class Scratch3AraConnectorBlocks {
      * @return {boolean} - true if the switch state matches input state.
      */
     whenSwitchFlipped (args) {
-        this._peripheral._ble.read(BLEUUID.lightingService, BLEUUID.onOffChar, false, this._peripheral._processOnOffData);
         if (args.BTN == this._peripheral.lightState) {
             return true;
         } else {
@@ -700,7 +705,6 @@ class Scratch3AraConnectorBlocks {
      * @return {boolean} - true if the switch state matches input state.
      */
     whenBrightnessChanged (args) {
-        this._peripheral._ble.read(BLEUUID.lightingService, BLEUUID.brightnessChar, false, this._peripheral._processBrightnessData);
         if (args.BTN == this._peripheral.brightnessState) {
             return true;
         } else {
@@ -788,7 +792,6 @@ class Scratch3AraConnectorBlocks {
      * @return {boolean} - true if the on/off sensor matches input.
      */
     lightState(args) {
-        this._peripheral._ble.read(BLEUUID.lightingService, BLEUUID.onOffChar, false, this._peripheral._processOnOffData);
         if (this._peripheral.lightState == args.BTN) {
             return true;
         } else {
@@ -802,7 +805,6 @@ class Scratch3AraConnectorBlocks {
      * @return {boolean} - true if the brightness sensor matches input.
      */
     brightnessState(args) {
-        this._peripheral._ble.read(BLEUUID.lightingService, BLEUUID.brightnessChar, false, this._peripheral._processBrightnessData);
         if(this._peripheral.brightnessState == args.BTN) {
             return true;
         } else {

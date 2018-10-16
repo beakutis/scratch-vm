@@ -739,6 +739,7 @@ class Scratch3MicroBitBlocks {
      * @return {boolean} - true if the button is pressed.
      */
     whenButtonPressed (args) {
+        console.log("WHEN BUTTON PUSHED")
         if (args.BTN === 'any') {
             return this._peripheral.buttonA | this._peripheral.buttonB;
         } else if (args.BTN === 'A') {

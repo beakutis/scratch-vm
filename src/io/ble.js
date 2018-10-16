@@ -117,7 +117,7 @@ class BLE extends JSONRPCWebSocket {
         this._characteristicDidChangeCallback = onCharacteristicChanged;
         return this.sendRemoteRequest('read', params)
             .catch(e => {
-                this._sendError(e);
+                // this._sendError(e);
             });
     }
 
@@ -138,10 +138,8 @@ class BLE extends JSONRPCWebSocket {
         if (withResponse) {
             params.withResponse = withResponse;
         }
-        console.log("the service is " + serviceId + " and the characteristicId is " + characteristicId + " and the command is " + message);
         return this.sendRemoteRequest('write', params)
             .catch(e => {
-                console.log("THE ERROR MESSAGE IS " + e.data);
                 this._sendError(e);
             });
     }
@@ -160,7 +158,6 @@ class BLE extends JSONRPCWebSocket {
                 this._runtime.constructor.PERIPHERAL_LIST_UPDATE,
                 this._availablePeripherals
             );
-            // console.log("AVAILABLE PERIPHS " + this._availablePeripherals[params.peripheralId])
             if (this._discoverTimeoutID) {
                 // TODO: window?
                 window.clearTimeout(this._discoverTimeoutID);
