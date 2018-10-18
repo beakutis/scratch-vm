@@ -41,7 +41,8 @@ class BLE extends JSONRPCWebSocket {
             this._discoverTimeoutID = window.setTimeout(this._sendDiscoverTimeout.bind(this), 15000);
             this.sendRemoteRequest('discover', this._peripheralOptions)
                 .catch(e => {
-                    this._sendError(e);
+                    console.log("ERROR IS " + e.message);
+                    this._sendError("ERROR IS " + e.message);
                 }); // never reached?
         }
         // TODO: else?
@@ -60,6 +61,7 @@ class BLE extends JSONRPCWebSocket {
                 this._connectCallback();
             })
             .catch(e => {
+                console.log("ERROR IS " + e.message);
                 this._sendError(e);
             });
     }
@@ -94,6 +96,8 @@ class BLE extends JSONRPCWebSocket {
         this._characteristicDidChangeCallback = onCharacteristicChanged;
         return this.sendRemoteRequest('startNotifications', params)
             .catch(e => {
+                console.log("lol idk " + e.data);
+                console.log("ERROR IS " + e.message);
                 this._sendError(e);
             });
     }
@@ -117,7 +121,8 @@ class BLE extends JSONRPCWebSocket {
         this._characteristicDidChangeCallback = onCharacteristicChanged;
         return this.sendRemoteRequest('read', params)
             .catch(e => {
-                // this._sendError(e);
+                console.log("ERROR IS " + e.message);
+                this._sendError(e);
             });
     }
 
@@ -140,6 +145,7 @@ class BLE extends JSONRPCWebSocket {
         }
         return this.sendRemoteRequest('write', params)
             .catch(e => {
+                console.log("ERROR IS " + e.message);
                 this._sendError(e);
             });
     }

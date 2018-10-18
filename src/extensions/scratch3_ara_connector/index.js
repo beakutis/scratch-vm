@@ -22,9 +22,10 @@ const blockIconURI = 'data:image/svg+xml;base64,PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1u
 const BLECommand = {
     CMD_LIGHT_ON: 0x01,
     CMD_LIGHT_OFF: 0x00,
-    CMD_BRIGHTNESS_DULL: 0x05,
-    CMD_BRIGHTNESS_MEDIUM: 0x10,
-    CMD_BRIGHTNESS_BRIGHT: 0x64,
+    CMD_BRIGHTNESS_DULL: 0x0F,
+    CMD_BRIGHTNESS_MEDIUM: 0x1E,
+    CMD_BRIGHTNESS_BRIGHT: 0x3C,
+    CMD_BRIGHTNESS_BRIGHTEST: 0x64,
     CMD_TEMPERATURE_COOL: 0x64,
     CMD_TEMPERATURE_NEUTRAL: 0x32,
     CMD_TEMPERATURE_WARM: 0x00
@@ -42,7 +43,7 @@ const BLEUUID = {
     lightingService: "ffe8badc-e1cb-46c6-9ad9-631ea7cbadff",
     onOffChar: '00a26834-5cf4-48e5-ae1c-9e1234c03e00',
     brightnessChar: 'bbe8badc-e1cb-46c6-9ad9-631ea7cba2bb',
-    temperatureChar: 'aabbccb6-0548-90bb-3f29-b67b5eccbbaa'
+    temperatureChar: 'cce8badc-e1cb-46c6-9ad9-631ea7cba2cc'
 };
 
 /**
@@ -236,23 +237,29 @@ class AraConnector {
     _processBrightnessData (brightnessState) {
         const data = Base64Util.base64ToUint8Array(brightnessState);
         if (data == 100) {
+            this._sensors.brightnessState = 'brightest';
+        } else if (data == 60){
             this._sensors.brightnessState = 'bright';
-        } else if (data == 16){
+        } else if (data == 30) {
             this._sensors.brightnessState = 'medium';
-        } else if (data == 5) {
+        } else if (data == 15) {
             this._sensors.brightnessState = 'dull';
         }
         window.clearInterval(this._timeoutID);
         this._timeoutID = window.setInterval(this.disconnect, BLETimeout);
         }
 
+        //15,30,60,100
     /**
      * Process the temperature sensor data from the incoming BLE characteristic.
      * @param {object} base64 - the incoming BLE data.
      * @private
      */
     _processTemperatureData (temperatureState) {
+        console.log("processing temp data");
+        console.log("temp state is " + temperatureState);
         const data = Base64Util.base64ToUint8Array(temperatureState);
+        console.log("temp data is " + data);
         if (data == 100) {
             this._sensors.temperatureState = 'warm';
         } else if (data == 50) {
@@ -308,13 +315,11 @@ class AraConnector {
     _onConnect () {
         this._onOffInterval = window.setInterval(() => {
             this._ble.read(BLEUUID.lightingService, BLEUUID.onOffChar, true, this._processOnOffData);
-        }, 400);
+        }, 100);
         this._brightnessInterval = window.setInterval(() => {
         this._ble.read(BLEUUID.lightingService, BLEUUID.brightnessChar, true, this._processBrightnessData);
-    }, 600);
-          this._temperatureInterval = window.setInterval(() => {
+    }, 125);
           this._ble.read(BLEUUID.lightingService, BLEUUID.temperatureChar, true, this._processTemperatureData);
-         }, 800);
         this._timeoutID = window.setInterval(this.disconnect, BLETimeout);
     }
 }
@@ -337,7 +342,8 @@ const onOffIndicator = {
 const brightnessIndicator = {
     DULL: 'dull',
     MEDIUM: 'medium',
-    BRIGHT: 'bright'
+    BRIGHT: 'bright',
+    BRIGHTEST: 'brightest'
 };
 
 /**
@@ -422,6 +428,13 @@ class Scratch3AraConnectorBlocks {
                     description: 'label for bright element in brightness state picker for araConnector extension'
                 }),
                 value: brightnessIndicator.BRIGHT
+            },
+            {
+                text: formatMessage({
+                    id: 'araConnector.brightnessMenu.brightest',
+                    default: 'brightest',
+                    description: 'label for brightest element in brightness state picker for araConnector extension'
+                })
             }
         ]
     }
@@ -747,6 +760,10 @@ class Scratch3AraConnectorBlocks {
         if(args.BTN == 'bright') {
             this._peripheral.setBrightnessState('bright');
             return this._peripheral.send(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_BRIGHT);
+        }
+            else if (args.BTN == 'brightest') {
+                this._peripheral.setBrightnessState('brightest');
+                return this._peripheral.send(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_BRIGHTEST);
         } else if (args.BTN == 'medium') {
             this._peripheral.setBrightnessState('medium');
             return this._peripheral.send(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_MEDIUM);
