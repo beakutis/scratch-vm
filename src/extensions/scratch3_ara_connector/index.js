@@ -189,30 +189,6 @@ class AraConnector {
         return connected;
     }
 
-    // /**
-    //  * Starts reading data from device after BLE has connected to it.
-    //  */
-    // _onSessionConnect () {
-    //     const onOffCallback = this._processOnOffData.bind(this);
-    //     const brightnessCallback = this._processBrightnessData.bind(this);
-    //     eventEmitter.on(btoa('onOff'), onOffCallback)
-    //     //const tempCallback = this._processTemperatureData.bind(this);
-    //     this._ble.read(BLEUUID.lightingService, BLEUUID.onOffChar, true).then ( () => { 
-    //         // eventEmitter.emit(btoa('onOff'))
-    //         console.log("notification received");
-    //     })
-    //     .catch(function(error) { console.log("READ DIDN'T WORK " + error)});
-    //     this._ble.startNotifications(BLEUUID.lightingService, BLEUUID.onOffChar, onOffCallback).then( () => console.log("startNotifications"))
-    //     .catch(function(error){ console.log("startNotifications did NOT work " + error)});
-    //     // this._busyTimeoutID = window.setTimeout(() => {
-    //     //     this._ble.read(BLEUUID.lightingService, BLEUUID.brightnessChar, true, brightnessCallback);
-    //     // }, 500);
-    //     // this._busyTimeoutID = window.setTimeout(() => {
-    //     //     this._ble.read(BLEUUID.lightingService, BLEUUID.temperatureChar, true, tempCallback);
-    //     // }, 500);
-    //     this._timeoutID = window.setInterval(this.disconnectSession.bind(this), BLETimeout);
-    // }
-
     /**
      * Process the on/off sensor data from the incoming BLE characteristic.
      * @param {object} base64 - the incoming BLE data.
@@ -249,22 +225,18 @@ class AraConnector {
         this._timeoutID = window.setInterval(this.disconnect, BLETimeout);
         }
 
-        //15,30,60,100
     /**
      * Process the temperature sensor data from the incoming BLE characteristic.
      * @param {object} base64 - the incoming BLE data.
      * @private
      */
     _processTemperatureData (temperatureState) {
-        console.log("processing temp data");
-        console.log("temp state is " + temperatureState);
         const data = Base64Util.base64ToUint8Array(temperatureState);
-        console.log("temp data is " + data);
-        if (data == 100) {
+        if (data == 0) {
             this._sensors.temperatureState = 'warm';
         } else if (data == 50) {
             this._sensors.temperatureState = 'neutral';
-        } else {
+        } else if (data == 100) {
             this._sensors.temperatureState = 'cool';
         }
         window.clearInterval(this._timeoutID);
@@ -313,14 +285,16 @@ class AraConnector {
      * @private
      */
     _onConnect () {
+        console.log("onConnect called");
+        this._ble.read(BLEUUID.lightingService, BLEUUID.temperatureChar, true, this._processTemperatureData).then( () => {
         this._onOffInterval = window.setInterval(() => {
             this._ble.read(BLEUUID.lightingService, BLEUUID.onOffChar, true, this._processOnOffData);
         }, 100);
         this._brightnessInterval = window.setInterval(() => {
         this._ble.read(BLEUUID.lightingService, BLEUUID.brightnessChar, true, this._processBrightnessData);
     }, 125);
-          this._ble.read(BLEUUID.lightingService, BLEUUID.temperatureChar, true, this._processTemperatureData);
         this._timeoutID = window.setInterval(this.disconnect, BLETimeout);
+        });
     }
 }
 
