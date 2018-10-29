@@ -718,10 +718,10 @@ class Scratch3AraConnectorBlocks {
      */
     flipSwitch (args) {
         if (args.BTN == 'off') {
-            this._peripheral.setLightState('off');
+            // this._peripheral.setLightState('off');
             return this._peripheral.send(BLEUUID.onOffChar, BLECommand.CMD_LIGHT_OFF);
         } else {
-            this._peripheral.setLightState('on');
+            // this._peripheral.setLightState('on');
             return this._peripheral.send(BLEUUID.onOffChar, BLECommand.CMD_LIGHT_ON);
         }
     }
