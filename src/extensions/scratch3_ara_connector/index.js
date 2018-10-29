@@ -732,17 +732,17 @@ class Scratch3AraConnectorBlocks {
      */
     setLightBrightness(args){
         if(args.BTN == 'bright') {
-            this._peripheral.setBrightnessState('bright');
+            // this._peripheral.setBrightnessState('bright');
             return this._peripheral.send(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_BRIGHT);
         }
             else if (args.BTN == 'brightest') {
-                this._peripheral.setBrightnessState('brightest');
+                // this._peripheral.setBrightnessState('brightest');
                 return this._peripheral.send(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_BRIGHTEST);
         } else if (args.BTN == 'medium') {
-            this._peripheral.setBrightnessState('medium');
+            // this._peripheral.setBrightnessState('medium');
             return this._peripheral.send(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_MEDIUM);
-        } else {
-            this._peripheral.setBrightnessState('dull');
+        } else if (args.BTN == 'dull') {
+            // this._peripheral.setBrightnessState('dull');
             return this._peripheral.send(BLEUUID.brightnessChar, BLECommand.CMD_BRIGHTNESS_DULL);
         } 
     }
